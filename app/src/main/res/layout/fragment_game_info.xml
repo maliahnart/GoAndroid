@@ -1,37 +1,202 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="8dp">
-
-    <TextView
-        android:id="@+id/turnTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Black's Turn"
-        android:textSize="16sp" />
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="4dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        android:padding="12dp">
 
-        <Button
-            android:id="@+id/passButton"
-            android:layout_width="0dp"
+        <!-- Current Player -->
+        <TextView
+            android:id="@+id/current_player_text"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Pass" />
+            android:gravity="center_horizontal"
+            android:textAppearance="?attr/textAppearanceHeadline6"
+            android:layout_marginBottom="12dp"
+            android:text="@string/current_player_placeholder" />
 
-        <Button
-            android:id="@+id/resignButton"
-            android:layout_width="0dp"
+        <!-- Player Info Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Resign" />
+            android:orientation="horizontal">
+
+            <!-- Black Player Section -->
+            <LinearLayout
+                android:id="@+id/black_player_section"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingEnd="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/player_black"
+                    android:textAppearance="?attr/textAppearanceSubtitle1"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+
+                <!-- Black Captured -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_capture"
+                        android:layout_marginEnd="4dp"
+                        app:tint="?attr/colorSecondary"
+                        android:contentDescription="@string/captured_stones_icon_desc" />
+                    <TextView
+                        android:id="@+id/black_captured_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/captured_placeholder" />
+                </LinearLayout>
+
+                <!-- Black Time -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical">
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_time"
+                        android:layout_marginEnd="4dp"
+                        app:tint="?attr/colorSecondary"
+                        android:contentDescription="@string/time_icon_desc" />
+                    <TextView
+                        android:id="@+id/black_time_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/time_placeholder" />
+                </LinearLayout>
+
+                <!-- Black Canadian Moves (nếu có) -->
+                <LinearLayout
+                    android:id="@+id/black_canadian_moves_container"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:visibility="gone">
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_moves"
+                        android:layout_marginEnd="4dp"
+                        app:tint="?attr/colorSecondary"
+                        android:contentDescription="@string/moves_icon_desc" />
+                    <TextView
+                        android:id="@+id/black_canadian_moves_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/moves_placeholder" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- White Player Section -->
+            <LinearLayout
+                android:id="@+id/white_player_section"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingStart="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/player_white"
+                    android:textAppearance="?attr/textAppearanceSubtitle1"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+
+                <!-- White Captured -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_capture"
+                        android:layout_marginEnd="4dp"
+                        app:tint="?attr/colorSecondary"
+                        android:contentDescription="@string/captured_stones_icon_desc" />
+                    <TextView
+                        android:id="@+id/white_captured_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/captured_placeholder" />
+                </LinearLayout>
+
+                <!-- White Time -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical">
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_time"
+                        android:layout_marginEnd="4dp"
+                        app:tint="?attr/colorSecondary"
+                        android:contentDescription="@string/time_icon_desc" />
+                    <TextView
+                        android:id="@+id/white_time_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/time_placeholder" />
+                </LinearLayout>
+
+                <!-- White Canadian Moves (nếu có) -->
+                <LinearLayout
+                    android:id="@+id/white_canadian_moves_container"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:visibility="gone">
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_moves"
+                        android:layout_marginEnd="4dp"
+                        app:tint="?attr/colorSecondary"
+                        android:contentDescription="@string/moves_icon_desc" />
+                    <TextView
+                        android:id="@+id/white_canadian_moves_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/moves_placeholder" />
+                </LinearLayout>
+            </LinearLayout>
+
+        </LinearLayout>
 
     </LinearLayout>
 
-</LinearLayout>
+</androidx.cardview.widget.CardView>

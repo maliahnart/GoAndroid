@@ -1,86 +1,152 @@
 package model;
+
+import config.ScoringRule;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class GameLogic {
-    /**
-     * Kiểm tra nước đi có hợp lệ không.
-     * @param move Nước đi cần kiểm tra.
-     * @param gameState Trạng thái game hiện tại.
-     * @return true nếu nước đi hợp lệ.
-     */
     public boolean isValidMove(Move move, GameState gameState) {
         if (move.isPass() || move.isResign()) {
             return true;
         }
 
         Point point = move.getPoint();
-        BoardState board = gameState.getBoardState();
+        BoardState currentBoard = gameState.getBoardState();
 
-        // Kiểm tra vị trí có trống không
-        if (board.getStone(point.getX(), point.getY()) != Stone.EMPTY) {
+        if (currentBoard.getStone(point.getX(), point.getY()) != Stone.EMPTY) {
             return false;
         }
 
-        // Thử đặt quân và kiểm tra luật (tự do, tự sát, Ko)
-        BoardState tempBoard = board.copy();
+        BoardState tempBoard = currentBoard.copy();
         tempBoard.setStone(point.getX(), point.getY(), move.getColor());
 
-        // Kiểm tra tự sát (không có tự do sau khi đặt)
-        if (!hasLiberties(tempBoard, point, move.getColor())) {
-            // Cho phép nếu nước đi này bắt được quân đối thủ
-            List<Point> captured = captureOpponentStones(tempBoard, point, move.getColor());
-            return !captured.isEmpty() || hasLiberties(tempBoard, point, move.getColor());
+        List<Point> captured = captureOpponentStones(tempBoard, point, move.getColor());
+        for (Point p : captured) {
+            tempBoard.setStone(p.getX(), p.getY(), Stone.EMPTY);
         }
 
-        // Kiểm tra luật Ko (so sánh với trạng thái trước đó)
-        // TODO: Cần lưu lịch sử bàn cờ trong GameState để kiểm tra đầy đủ
+        if (captured.isEmpty() && !hasLiberties(tempBoard, point, move.getColor())) {
+            return false;
+        }
+
+        BoardState previousBoard = gameState.getPreviousBoardState();
+        if (previousBoard != null && tempBoard.equals(previousBoard)) {
+            return false;
+        }
+
         return true;
     }
 
-    /**
-     * Áp dụng một nước đi vào game.
-     * @param move Nước đi cần áp dụng.
-     * @param gameState Trạng thái game hiện tại.
-     */
-    public void applyMove(Move move, GameState gameState) {
+    public CapturedResult calculateNextBoardState(Move move, BoardState currentBoard) {
         if (move.isPass() || move.isResign()) {
-            gameState.addMove(move);
-            if (!move.isResign()) {
-                gameState.setCurrentPlayer(gameState.getCurrentPlayer().opponent());
-            }
-            return;
+            return new CapturedResult(currentBoard.copy(), 0);
         }
 
         Point point = move.getPoint();
-        BoardState board = gameState.getBoardState();
+        Stone color = move.getColor();
+        BoardState nextBoard = currentBoard.copy();
 
-        // Đặt quân
-        board.setStone(point.getX(), point.getY(), move.getColor());
+        nextBoard.setStone(point.getX(), point.getY(), color);
 
-        // Bắt quân đối thủ
-        List<Point> captured = captureOpponentStones(board, point, move.getColor());
+        List<Point> captured = captureOpponentStones(nextBoard, point, color);
         for (Point p : captured) {
-            board.setStone(p.getX(), p.getY(), Stone.EMPTY);
+            nextBoard.setStone(p.getX(), p.getY(), Stone.EMPTY);
         }
 
-        // Thêm vào lịch sử và chuyển lượt
-        gameState.addMove(move);
-        gameState.setCurrentPlayer(gameState.getCurrentPlayer().opponent());
+        return new CapturedResult(nextBoard, captured.size());
     }
 
     /**
-     * Kiểm tra xem một nhóm quân tại điểm point có tự do không.
+     * Tính điểm số cuối game.
+     * @param state Trạng thái game.
+     * @param rule Luật tính điểm (Nhật Bản/Trung Quốc).
+     * @return Điểm số của Đen và Trắng.
      */
+    public Score calculateScore(GameState state, ScoringRule rule) {
+        BoardState board = state.getBoardState();
+        int blackTerritory = countTerritory(board, Stone.BLACK);
+        int whiteTerritory = countTerritory(board, Stone.WHITE);
+
+        float blackScore;
+        float whiteScore;
+
+        if (rule == ScoringRule.JAPANESE) {
+            blackScore = blackTerritory + state.getBlackCaptured();
+            whiteScore = whiteTerritory + state.getWhiteCaptured() + state.getKomi();
+        } else { // ScoringRule.CHINESE
+            int blackStones = countStones(board, Stone.BLACK);
+            int whiteStones = countStones(board, Stone.WHITE);
+            blackScore = blackTerritory + blackStones;
+            whiteScore = whiteTerritory + whiteStones + state.getKomi();
+        }
+
+        return new Score(blackScore, whiteScore);
+    }
+
+    private int countTerritory(BoardState board, Stone color) {
+        int size = board.getSize();
+        boolean[][] visited = new boolean[size][size];
+        int territory = 0;
+
+        for (int x = 0; x < size; x++) {
+            for (int y = 0; y < size; y++) {
+                if (!visited[x][y] && board.getStone(x, y) == Stone.EMPTY) {
+                    List<Point> region = new ArrayList<>();
+                    boolean isTerritory = floodFill(board, x, y, color, visited, region);
+                    if (isTerritory) {
+                        territory += region.size();
+                    }
+                }
+            }
+        }
+        return territory;
+    }
+
+    private boolean floodFill(BoardState board, int x, int y, Stone color, boolean[][] visited, List<Point> region) {
+        if (!board.isValidPosition(x, y) || visited[x][y]) {
+            return true;
+        }
+
+        Stone stone = board.getStone(x, y);
+        if (stone != Stone.EMPTY && stone != color) {
+            return false; // Vùng giáp với quân đối thủ
+        }
+
+        visited[x][y] = true;
+        region.add(new Point(x, y));
+
+        boolean isTerritory = true;
+        int[][] directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        for (int[] dir : directions) {
+            int nx = x + dir[0];
+            int ny = y + dir[1];
+            isTerritory &= floodFill(board, nx, ny, color, visited, region);
+        }
+        return isTerritory;
+    }
+
+    private int countStones(BoardState board, Stone color) {
+        int count = 0;
+        int size = board.getSize();
+        for (int x = 0; x < size; x++) {
+            for (int y = 0; y < size; y++) {
+                if (board.getStone(x, y) == color) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
     private boolean hasLiberties(BoardState board, Point point, Stone color) {
         Set<Point> visited = new HashSet<>();
         List<Point> group = new ArrayList<>();
         findGroup(board, point, color, group, visited);
 
         for (Point p : group) {
-            // Kiểm tra các điểm lân cận
             int[][] directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
             for (int[] dir : directions) {
                 int nx = p.getX() + dir[0];
@@ -93,9 +159,6 @@ public class GameLogic {
         return false;
     }
 
-    /**
-     * Tìm nhóm quân cùng màu bắt đầu từ điểm point.
-     */
     private void findGroup(BoardState board, Point point, Stone color, List<Point> group, Set<Point> visited) {
         if (!board.isValidPosition(point.getX(), point.getY()) || visited.contains(point)) {
             return;
@@ -114,10 +177,6 @@ public class GameLogic {
         }
     }
 
-    /**
-     * Bắt quân đối thủ xung quanh điểm point.
-     * @return Danh sách các điểm quân bị bắt.
-     */
     private List<Point> captureOpponentStones(BoardState board, Point point, Stone color) {
         List<Point> captured = new ArrayList<>();
         Stone opponent = color.opponent();
@@ -137,5 +196,33 @@ public class GameLogic {
             }
         }
         return captured;
+    }
+
+    public static class CapturedResult {
+        private final BoardState boardState;
+        private final int capturedCount;
+
+        public CapturedResult(BoardState boardState, int capturedCount) {
+            this.boardState = boardState;
+            this.capturedCount = capturedCount;
+        }
+
+        public BoardState getBoardState() {
+            return boardState;
+        }
+
+        public int getCapturedCount() {
+            return capturedCount;
+        }
+    }
+
+    public static class Score {
+        public final float blackScore;
+        public final float whiteScore;
+
+        public Score(float blackScore, float whiteScore) {
+            this.blackScore = blackScore;
+            this.whiteScore = whiteScore;
+        }
     }
 }

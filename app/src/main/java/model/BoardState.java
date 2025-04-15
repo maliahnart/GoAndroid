@@ -1,9 +1,12 @@
 package model;
 
 import config.GameConfig;
-import config.GameMode;
+
+import java.util.Arrays;
+import java.util.Objects;
+
 /**
- * Lớp biểu diễn trạng thái bàn cờ trong trò chơi cờ vây.
+ * Lớp biểu diễn trạng thái bàn cờ trong trò chơi Cờ Vây.
  */
 public class BoardState {
     private final Stone[][] board;
@@ -28,19 +31,11 @@ public class BoardState {
     public BoardState copy() {
         BoardState copy = new BoardState(config);
         for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                copy.board[i][j] = this.board[i][j];
-            }
+            System.arraycopy(board[i], 0, copy.board[i], 0, size);
         }
         return copy;
     }
-    /**
-     * Lấy trạng thái ô tại vị trí (x, y).
-     * @param x Tọa độ hàng.
-     * @param y Tọa độ cột.
-     * @return Stone tại vị trí (x, y).
-     * @throws IllegalArgumentException nếu vị trí không hợp lệ.
-     */
+
     public Stone getStone(int x, int y) {
         if (isValidPosition(x, y)) {
             return board[x][y];
@@ -48,13 +43,6 @@ public class BoardState {
         throw new IllegalArgumentException("Invalid position: (" + x + ", " + y + ")");
     }
 
-    /**
-     * Đặt quân tại vị trí (x, y).
-     * @param x Tọa độ hàng.
-     * @param y Tọa độ cột.
-     * @param stone Màu quân (BLACK, WHITE, hoặc EMPTY).
-     * @throws IllegalArgumentException nếu vị trí không hợp lệ.
-     */
     public void setStone(int x, int y, Stone stone) {
         if (isValidPosition(x, y)) {
             board[x][y] = stone;
@@ -63,26 +51,34 @@ public class BoardState {
         }
     }
 
-    /**
-     * Lấy kích thước bàn cờ.
-     * @return Kích thước (số ô mỗi chiều).
-     */
     public int getSize() {
         return size;
     }
 
-    /**
-     * Kiểm tra vị trí (x, y) có hợp lệ không.
-     * @param x Tọa độ hàng.
-     * @param y Tọa độ cột.
-     * @return True nếu vị trí hợp lệ, false nếu không.
-     */
     public boolean isValidPosition(int x, int y) {
         return x >= 0 && x < size && y >= 0 && y < size;
     }
 
-    /**
-     * Sao chép trạng thái bàn cờ.
-     * @return Một bản sao của BoardState với cùng kích thước và trạng thái.
-     */
+    public String hash() {
+        StringBuilder sb = new StringBuilder(size * size);
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                sb.append(board[i][j].ordinal());
+            }
+        }
+        return sb.toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BoardState that = (BoardState) o;
+        return size == that.size && Arrays.deepEquals(board, that.board);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(size, Arrays.deepHashCode(board));
+    }
 }

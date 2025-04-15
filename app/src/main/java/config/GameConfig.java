@@ -95,6 +95,6 @@ public class GameConfig {
     }
 
     private boolean isValidBoardSize(int size) {
-        return size == 9 || size == 13 || size == 19;
+        return size == 4 || size == 9 || size == 13 || size == 19;
     }
 }

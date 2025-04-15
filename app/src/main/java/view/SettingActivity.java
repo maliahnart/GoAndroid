@@ -1,6 +1,7 @@
 package view;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -39,7 +40,7 @@ public class SettingActivity extends AppCompatActivity {
 
         // Cài đặt adapter cho board size
         ArrayAdapter<String> sizeAdapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, new String[]{"9x9", "13x13", "19x19"});
+                this, android.R.layout.simple_spinner_item, new String[]{"4x4","9x9", "13x13", "19x19"});
         sizeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         boardSizeSpinner.setAdapter(sizeAdapter);
 
@@ -76,12 +77,14 @@ public class SettingActivity extends AppCompatActivity {
 
     private int getBoardSizeIndex(int boardSize) {
         switch (boardSize) {
+            case 4:
+                return 1;
             case 9:
                 return 0;
             case 13:
-                return 1;
-            case 19:
                 return 2;
+            case 19:
+                return 3;
             default:
                 return 0;
         }
@@ -92,7 +95,11 @@ public class SettingActivity extends AppCompatActivity {
             // Lấy kích thước bàn cờ
             int boardSize;
             String sizeText = boardSizeSpinner.getSelectedItem().toString();
+            Log.d("BoardSizeDebug", "Selected size: " + sizeText);
             switch (sizeText) {
+                case "4x4":
+                    boardSize = 4;
+                    break;
                 case "9x9":
                     boardSize = 9;
                     break;

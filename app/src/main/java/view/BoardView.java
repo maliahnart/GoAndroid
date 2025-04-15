@@ -83,6 +83,12 @@ public class BoardView extends View {
             bgPaint.setColor(i % 2 == 0 ? WOOD_LIGHT : WOOD_DARK);
             canvas.drawRect(0, i * cellSize, getWidth(), (i + 1) * cellSize, bgPaint);
         }
+        Paint borderPaint = new Paint();
+        borderPaint.setColor(BORDER_COLOR);
+        borderPaint.setStyle(Paint.Style.STROKE);
+        borderPaint.setStrokeWidth(8f);
+        canvas.drawRect(new RectF(cellSize / 2, cellSize / 2,
+                getWidth() - cellSize / 2, getHeight() - cellSize / 2), borderPaint);
 
         for (int i = 0; i < boardSize; i++) {
             float pos = i * cellSize + cellSize / 2;
@@ -138,12 +144,6 @@ public class BoardView extends View {
             }
         }
 
-        Paint borderPaint = new Paint();
-        borderPaint.setColor(BORDER_COLOR);
-        borderPaint.setStyle(Paint.Style.STROKE);
-        borderPaint.setStrokeWidth(8f);
-        canvas.drawRect(new RectF(cellSize / 2, cellSize / 2,
-                getWidth() - cellSize / 2, getHeight() - cellSize / 2), borderPaint);
     }
 
     @Override

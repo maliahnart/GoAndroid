@@ -1,22 +1,23 @@
 package com.example.gogameproject;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import androidx.appcompat.app.AppCompatActivity;
 
-import config.GameConfig;
-import config.GameMode;
-import model.BoardState;
-import view.BoardView;
-
 public class MainActivity extends AppCompatActivity {
+    private static final int SPLASH_TIME = 3000; // 3 giây
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_game);
-        BoardView boardView = findViewById(R.id.boardView);
-        GameConfig config = new GameConfig();
-        BoardState boardState = new BoardState(config);
-        boardState.setStone(4, 4,model.Stone.BLACK);
-        boardView.setBoardState(boardState);
+        setContentView(R.layout.activity_main); // màn hình nền tạm thời
+
+        // Delay 3s rồi chuyển sang SettingActivity
+        new Handler().postDelayed(() -> {
+            Intent intent = new Intent(MainActivity.this, view.MainMenuActivity.class);
+            startActivity(intent);
+            finish(); // đóng splash
+        }, SPLASH_TIME);
     }
 }

@@ -2,4 +2,17 @@
     <string name="app_name">GoGameProject</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
-</resources>
+        <string name="current_player">Current Player: %s</string>
+        <string name="player_black">Black</string>
+        <string name="player_white">White</string>
+        <string name="captured">Captured: %d</string>
+        <string name="time">Time: %s</string>
+        <string name="moves">Moves: %d</string>
+        <string name="current_player_placeholder">Current Player: Black</string>
+        <string name="captured_placeholder">Captured: 0</string>
+        <string name="time_placeholder">Time: 0:00</string>
+        <string name="moves_placeholder">Moves: 25</string>
+        <string name="captured_stones_icon_desc">Captured stones icon</string>
+        <string name="time_icon_desc">Time remaining icon</string>
+        <string name="moves_icon_desc">Moves remaining icon</string>
+    </resources>

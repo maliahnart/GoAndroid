@@ -13,12 +13,46 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/fragment_container" />
+        app:layout_constraintBottom_toTopOf="@id/button_container" />
 
-    <FrameLayout
-        android:id="@+id/fragment_container"
+    <LinearLayout
+        android:id="@+id/button_container"
         android:layout_width="0dp"
-        android:layout_height="100dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:layout_marginHorizontal="16dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/fragment_container">
+
+        <Button
+            android:id="@+id/pass_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Pass" />
+
+        <Button
+            android:id="@+id/resign_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Resign" />
+
+        <Button
+            android:id="@+id/undo_button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Undo" />
+    </LinearLayout>
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragment_container"
+        android:name="view.GameInfoFragment"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         android:layout_margin="16dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
