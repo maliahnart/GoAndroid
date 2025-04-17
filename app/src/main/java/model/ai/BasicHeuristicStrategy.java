@@ -1,74 +1,104 @@
 package model.ai;
 
+import android.util.Log;
+
 import model.*;
 
 import java.util.ArrayList;
-import java.util.Collections; // Để xáo trộn nếu điểm bằng nhau
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.Stack;
 
+/**
+ * AI heuristic đơn giản cho cờ vây, dùng trong chế độ PVB_EASY.
+ * Ưu tiên bắt quân, cứu nhóm, tạo Atari, cắt đối thủ, mở rộng vùng.
+ * Tránh lấp mắt thật và tự Atari, ưu tiên Pass khi đối phương hết lượt
+ * và không còn nước đi tốt.
+ */
 public class BasicHeuristicStrategy extends AbstractAIStrategy {
     private final Random random = new Random();
-    private final GameLogic logic = new GameLogic(); // Tạo 1 lần để tái sử dụng
+    private final GameLogic logic = new GameLogic();
 
-    // Điểm số cho các loại heuristic
-    private static final int CAPTURE_SCORE = 1000;    // Bắt quân
-    private static final int SAVE_ATARI_SCORE = 900;     // Cứu quân mình khỏi Atari
-    private static final int CREATE_ATARI_SCORE = 100;    // Đặt đối thủ vào Atari
-    private static final int CONNECT_OWN_SCORE = 10;     // Đi gần quân mình
-    private static final int CENTER_BIAS_SCORE = 1;      // Điểm cộng nhỏ nếu gần trung tâm
-    private static final int SELF_ATARI_PENALTY = -800;  // Phạt nặng nếu tự đặt mình vào Atari
-    private static final int FILL_OWN_EYE_PENALTY = -950; // Phạt rất nặng nếu tự lấp mắt mình
+    // Điểm số heuristic
+    private static final int CAPTURE_SCORE = 1000;     // Bắt quân đối thủ
+    private static final int SAVE_ATARI_SCORE = 900;   // Cứu nhóm mình khỏi Atari
+    private static final int CREATE_ATARI_SCORE = 200; // Đặt đối thủ vào Atari
+    private static final int CUT_OPPONENT_SCORE = 150; // Ngăn đối thủ nối
+    private static final int EXPAND_LIBERTY_SCORE = 50;// Tăng khí nhóm mình
+    private static final int CONNECT_OWN_SCORE = 20;   // Kết nối quân mình
+    private static final int CENTER_BIAS_SCORE = 5;    // Gần trung tâm
+    private static final int SELF_ATARI_PENALTY = -800;// Phạt tự Atari
+    private static final int FILL_EYE_PENALTY = -1000; // Phạt lấp mắt thật (tăng lên)
+    private static final int PASS_THRESHOLD = 100;     // Ngưỡng để Pass nếu không có nước tốt
 
     @Override
     public Move generateMove(GameState gameState, Stone color) {
+        long startTime = System.currentTimeMillis();
         BoardState currentBoard = gameState.getBoardState();
         List<PotentialMove> potentialMoves = new ArrayList<>();
 
-        // 1. Tìm tất cả các nước đi hợp lệ và đánh giá ban đầu
-        for (int x = 0; x < currentBoard.getSize(); x++) {
-            for (int y = 0; y < currentBoard.getSize(); y++) {
-                if (currentBoard.getStone(x, y) == Stone.EMPTY) {
-                    Point point = new Point(x, y);
-                    Move testMove = new Move(point, color);
+        // 1. Kiểm tra nếu đối phương vừa Pass
+        boolean opponentPassed = false;
+        List<Move> moveHistory = gameState.getMoveHistory();
+        if (!moveHistory.isEmpty() && moveHistory.get(moveHistory.size() - 1).isPass()) {
+            opponentPassed = true;
+            Log.d("BasicHeuristic", "Opponent passed. Prioritizing Pass unless strong move found.");
+        }
 
-                    if (logic.isValidMove(testMove, gameState)) {
-                        // Tính điểm heuristic cho nước đi này
-                        int score = evaluateMove(gameState, testMove);
-                        potentialMoves.add(new PotentialMove(testMove, score));
-                    }
-                }
+        // 2. Lấy các điểm tiềm năng
+        Set<Point> candidates = getCandidatePoints(currentBoard);
+        if (candidates.isEmpty()) {
+            candidates.add(new Point(currentBoard.getSize() / 2, currentBoard.getSize() / 2));
+        }
+
+        // 3. Đánh giá nước đi hợp lệ
+        for (Point point : candidates) {
+            Move testMove = new Move(point, color);
+            if (logic.isValidMove(testMove, gameState)) {
+                int score = evaluateMove(gameState, testMove);
+                potentialMoves.add(new PotentialMove(testMove, score));
             }
         }
 
-        // 2. Nếu không có nước đi nào hợp lệ -> Pass
+        // 4. Xử lý khi không có nước đi hoặc nước đi kém
         if (potentialMoves.isEmpty()) {
-            return new Move(null, color, true, false); // Pass
+            Log.d("BasicHeuristic", "No valid moves. Passing. Time: " +
+                    (System.currentTimeMillis() - startTime) + "ms");
+            return new Move(null, color, true, false);
         }
 
-        // 3. Tìm nước đi có điểm số cao nhất
-        potentialMoves.sort((m1, m2) -> Integer.compare(m2.score, m1.score)); // Sắp xếp giảm dần theo điểm
-
-        // 4. Chọn nước đi tốt nhất (có thể có nhiều nước cùng điểm cao nhất)
+        // 5. Sắp xếp và chọn nước đi
+        potentialMoves.sort((m1, m2) -> Integer.compare(m2.score, m1.score));
         int bestScore = potentialMoves.get(0).score;
+
+        // 6. Nếu đối phương Pass và không có nước đi tốt -> Pass
+        if (opponentPassed && bestScore < PASS_THRESHOLD) {
+            Log.d("BasicHeuristic", "Opponent passed and best score (" + bestScore +
+                    ") below threshold. Passing. Time: " +
+                    (System.currentTimeMillis() - startTime) + "ms");
+            return new Move(null, color, true, false);
+        }
+
+        // 7. Chọn nước tốt nhất
         List<PotentialMove> bestMoves = new ArrayList<>();
         for (PotentialMove pm : potentialMoves) {
             if (pm.score == bestScore) {
                 bestMoves.add(pm);
             } else {
-                // Vì đã sắp xếp nên có thể dừng sớm
                 break;
             }
         }
 
-        // 5. Nếu có nhiều nước đi cùng điểm tốt nhất, chọn ngẫu nhiên 1 trong số đó
         if (bestMoves.size() > 1) {
-            Collections.shuffle(bestMoves); // Xáo trộn danh sách các nước tốt nhất
+            Collections.shuffle(bestMoves, random);
         }
-        return bestMoves.get(0).move;
+        Move selectedMove = bestMoves.get(0).move;
+        Log.d("BasicHeuristic", "Selected move: " + selectedMove + ", score: " +
+                bestScore + ", time: " + (System.currentTimeMillis() - startTime) + "ms");
+        return selectedMove;
     }
 
     /**
@@ -81,118 +111,156 @@ public class BasicHeuristicStrategy extends AbstractAIStrategy {
         Stone opponentColor = myColor.opponent();
         BoardState currentBoard = originalState.getBoardState();
 
-        // --- Kiểm tra các hiệu ứng ngay lập tức của nước đi ---
-        // Tạo trạng thái bàn cờ *sau khi* thực hiện nước đi
-        // (Bao gồm cả việc bắt quân nếu có)
+        // Tính trạng thái sau khi đi
         GameLogic.CapturedResult result = logic.calculateNextBoardState(move, currentBoard);
         BoardState nextBoard = result.getBoardState();
         int stonesCaptured = result.getCapturedCount();
 
-        // 1. Heuristic: Bắt quân
+        // 1. Bắt quân
         if (stonesCaptured > 0) {
-            score += CAPTURE_SCORE * stonesCaptured; // Điểm cộng lớn khi bắt được quân
+            score += CAPTURE_SCORE * stonesCaptured;
         }
 
-        // 2. Heuristic: Cứu quân của mình khỏi trạng thái Atari
-        // Kiểm tra các nhóm quân *của mình* xung quanh điểm vừa đi
+        // 2. Cứu nhóm khỏi Atari
         for (Point neighbor : getNeighbors(point, currentBoard.getSize())) {
-            if (currentBoard.isValidPosition(neighbor.getX(), neighbor.getY()) && currentBoard.getStone(neighbor.getX(), neighbor.getY()) == myColor) {
-                // Nếu nhóm quân đó *trước đây* bị Atari (chỉ 1 liberty)
-                if (isInAtari(currentBoard, neighbor, myColor)) {
-                    // Và *bây giờ* (sau nước đi) không còn bị Atari nữa
-                    if (!isInAtari(nextBoard, neighbor, myColor)) {
-                        score += SAVE_ATARI_SCORE;
-                        break; // Chỉ cần cứu 1 nhóm là đủ cộng điểm này
+            if (currentBoard.isValidPosition(neighbor.getX(), neighbor.getY()) &&
+                    currentBoard.getStone(neighbor.getX(), neighbor.getY()) == myColor) {
+                if (isInAtari(currentBoard, neighbor, myColor) &&
+                        !isInAtari(nextBoard, neighbor, myColor)) {
+                    score += SAVE_ATARI_SCORE;
+                    break;
+                }
+            }
+        }
+
+        // 3. Đặt đối thủ vào Atari
+        for (Point neighbor : getNeighbors(point, nextBoard.getSize())) {
+            if (nextBoard.isValidPosition(neighbor.getX(), neighbor.getY()) &&
+                    nextBoard.getStone(neighbor.getX(), neighbor.getY()) == opponentColor) {
+                if (isInAtari(nextBoard, neighbor, opponentColor)) {
+                    score += CREATE_ATARI_SCORE;
+                    break;
+                }
+            }
+        }
+
+        // 4. Tăng khí nhóm mình
+        for (Point neighbor : getNeighbors(point, currentBoard.getSize())) {
+            if (currentBoard.isValidPosition(neighbor.getX(), neighbor.getY()) &&
+                    currentBoard.getStone(neighbor.getX(), neighbor.getY()) == myColor) {
+                int beforeLiberties = countLiberties(currentBoard, neighbor, myColor);
+                int afterLiberties = countLiberties(nextBoard, neighbor, myColor);
+                if (afterLiberties > beforeLiberties) {
+                    score += EXPAND_LIBERTY_SCORE * (afterLiberties - beforeLiberties);
+                }
+            }
+        }
+
+        // 5. Ngăn đối thủ nối
+        int opponentConnectionsBlocked = 0;
+        for (Point neighbor : getNeighbors(point, currentBoard.getSize())) {
+            if (currentBoard.isValidPosition(neighbor.getX(), neighbor.getY()) &&
+                    currentBoard.getStone(neighbor.getX(), neighbor.getY()) == opponentColor) {
+                for (Point neighbor2 : getNeighbors(neighbor, currentBoard.getSize())) {
+                    if (!neighbor2.equals(point) &&
+                            currentBoard.isValidPosition(neighbor2.getX(), neighbor2.getY()) &&
+                            currentBoard.getStone(neighbor2.getX(), neighbor2.getY()) == opponentColor) {
+                        opponentConnectionsBlocked++;
                     }
                 }
             }
         }
+        score += CUT_OPPONENT_SCORE * opponentConnectionsBlocked;
 
-        // 3. Heuristic: Đặt quân đối thủ vào Atari
-        // Kiểm tra các nhóm quân *của đối thủ* xung quanh điểm vừa đi *sau khi* đã đi
-        for (Point neighbor : getNeighbors(point, nextBoard.getSize())) {
-            if (nextBoard.isValidPosition(neighbor.getX(), neighbor.getY()) && nextBoard.getStone(neighbor.getX(), neighbor.getY()) == opponentColor) {
-                // Nếu nhóm đối thủ đó *bây giờ* bị Atari (và chưa bị bắt)
-                if (isInAtari(nextBoard, neighbor, opponentColor)) {
-                    score += CREATE_ATARI_SCORE;
-                    // Có thể cộng dồn nếu đặt nhiều nhóm vào Atari, hoặc chỉ cộng 1 lần
-                    break; // Tạm thời chỉ cộng 1 lần
-                }
+        // 6. Kết nối quân mình
+        for (Point neighbor : getNeighbors(point, currentBoard.getSize())) {
+            if (currentBoard.isValidPosition(neighbor.getX(), neighbor.getY()) &&
+                    currentBoard.getStone(neighbor.getX(), neighbor.getY()) == myColor) {
+                score += CONNECT_OWN_SCORE;
             }
         }
 
+        // 7. Gần trung tâm
+        int center = currentBoard.getSize() / 2;
+        int distance = Math.abs(point.getX() - center) + Math.abs(point.getY() - center);
+        if (distance <= center / 2) {
+            score += CENTER_BIAS_SCORE;
+        }
 
-        // 4. Phạt: Tự đặt mình vào Atari
-        // Kiểm tra nhóm quân chứa quân vừa đặt *sau khi* đi
+        // 8. Phạt tự Atari
         if (isInAtari(nextBoard, point, myColor)) {
-            // Chỉ phạt nếu nước đi này không phải là nước cứu quân khác
-            // (heuristic cứu quân đã cộng điểm rồi nên có thể bỏ qua phạt này trong trường hợp đó)
-            boolean didSaveAnotherGroup = false;
+            boolean didSaveOrCapture = stonesCaptured > 0;
             for (Point neighbor : getNeighbors(point, currentBoard.getSize())) {
-                if (currentBoard.isValidPosition(neighbor.getX(), neighbor.getY()) && currentBoard.getStone(neighbor.getX(), neighbor.getY()) == myColor) {
-                    if (isInAtari(currentBoard, neighbor, myColor) && !isInAtari(nextBoard, neighbor, myColor)) {
-                        didSaveAnotherGroup = true;
+                if (currentBoard.isValidPosition(neighbor.getX(), neighbor.getY()) &&
+                        currentBoard.getStone(neighbor.getX(), neighbor.getY()) == myColor) {
+                    if (isInAtari(currentBoard, neighbor, myColor) &&
+                            !isInAtari(nextBoard, neighbor, myColor)) {
+                        didSaveOrCapture = true;
                         break;
                     }
                 }
             }
-            if (!didSaveAnotherGroup && stonesCaptured == 0) { // Chỉ phạt nếu không bắt quân và không cứu quân khác
+            if (!didSaveOrCapture) {
                 score += SELF_ATARI_PENALTY;
             }
         }
 
-        // 5. Phạt: Tự lấp mắt mình
-        if (isFillingOwnEye(currentBoard, point, myColor)) {
-            score += FILL_OWN_EYE_PENALTY;
+        // 9. Phạt lấp mắt thật
+        if (isFillingTrueEye(currentBoard, point, myColor)) {
+            score += FILL_EYE_PENALTY;
         }
 
-
-        // 6. Heuristic: Đi gần quân mình (Kết nối)
-        for (Point neighbor : getNeighbors(point, currentBoard.getSize())) {
-            if (currentBoard.isValidPosition(neighbor.getX(), neighbor.getY()) && currentBoard.getStone(neighbor.getX(), neighbor.getY()) == myColor) {
-                score += CONNECT_OWN_SCORE;
-                // break; // Có thể chỉ cộng 1 lần hoặc cộng dồn cho mỗi quân hàng xóm
-            }
-        }
-
-        // 7. Heuristic: Gần trung tâm (giữ lại từ code gốc của bạn, điểm rất nhỏ)
-        int center = currentBoard.getSize() / 2;
-        int distance = Math.abs(point.getX() - center) + Math.abs(point.getY() - center);
-        // Điểm càng cao khi càng gần trung tâm (distance nhỏ)
-        // Ví dụ: score += CENTER_BIAS_SCORE * (center * 2 - distance);
-        // Hoặc đơn giản:
-        if (distance <= center / 2) { // Ví dụ: trong 1/4 bán kính từ tâm
-            score += CENTER_BIAS_SCORE;
-        }
-
-
-        // Thêm một chút ngẫu nhiên nhỏ để tránh các nước đi lặp lại khi điểm bằng nhau
-        score += random.nextInt(3) - 1; // Cộng ngẫu nhiên -1, 0, hoặc 1
-
+        // Thêm ngẫu nhiên nhỏ
+        score += random.nextInt(3) - 1;
         return score;
     }
 
     /**
-     * Kiểm tra xem một nhóm quân có đang ở trạng thái Atari không (chỉ còn 1 liberty).
-     * Cần hàm getLiberties hoặc tương tự trong GameLogic hoặc ở đây.
+     * Lấy các điểm tiềm năng (gần quân hiện tại, bán kính 2 ô).
+     */
+    private Set<Point> getCandidatePoints(BoardState board) {
+        Set<Point> candidates = new HashSet<>();
+        int boardSize = board.getSize();
+        int radius = 2;
+
+        for (int x = 0; x < boardSize; x++) {
+            for (int y = 0; y < boardSize; y++) {
+                if (board.getStone(x, y) != Stone.EMPTY) {
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dy = -radius; dy <= radius; dy++) {
+                            int nx = x + dx;
+                            int ny = y + dy;
+                            if (board.isValidPosition(nx, ny) &&
+                                    board.getStone(nx, ny) == Stone.EMPTY) {
+                                candidates.add(new Point(nx, ny));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return candidates;
+    }
+
+    /**
+     * Kiểm tra xem nhóm chứa điểm có đang ở Atari không.
      */
     private boolean isInAtari(BoardState board, Point point, Stone color) {
         return countLiberties(board, point, color) == 1;
     }
 
     /**
-     * Đếm số lượng liberty của nhóm quân chứa điểm point.
-     * (Cần implement hàm này - có thể dựa trên logic findGroup và kiểm tra hàng xóm trống)
+     * Đếm số khí của nhóm chứa điểm.
      */
     private int countLiberties(BoardState board, Point startPoint, Stone color) {
-        if (!board.isValidPosition(startPoint.getX(), startPoint.getY()) || board.getStone(startPoint.getX(), startPoint.getY()) != color) {
-            return 0; // Không có quân hoặc không đúng màu
+        if (!board.isValidPosition(startPoint.getX(), startPoint.getY()) ||
+                board.getStone(startPoint.getX(), startPoint.getY()) != color) {
+            return 0;
         }
 
-        Set<Point> visitedGroup = new HashSet<>(); // Theo dõi các quân trong nhóm đã xét
-        Set<Point> liberties = new HashSet<>();   // Lưu các điểm liberty duy nhất
+        Set<Point> visitedGroup = new HashSet<>();
+        Set<Point> liberties = new HashSet<>();
         Stack<Point> stack = new Stack<>();
-
         stack.push(startPoint);
         visitedGroup.add(startPoint);
 
@@ -200,67 +268,78 @@ public class BasicHeuristicStrategy extends AbstractAIStrategy {
 
         while (!stack.isEmpty()) {
             Point current = stack.pop();
-
             for (int[] dir : directions) {
                 int nx = current.getX() + dir[0];
                 int ny = current.getY() + dir[1];
                 Point neighbor = new Point(nx, ny);
-
                 if (board.isValidPosition(nx, ny)) {
                     Stone neighborStone = board.getStone(nx, ny);
                     if (neighborStone == Stone.EMPTY) {
-                        liberties.add(neighbor); // Tìm thấy liberty, thêm vào set (tự động loại trùng)
+                        liberties.add(neighbor);
                     } else if (neighborStone == color && !visitedGroup.contains(neighbor)) {
-                        // Nếu là quân cùng màu chưa thăm, thêm vào stack để xét nhóm tiếp
                         visitedGroup.add(neighbor);
                         stack.push(neighbor);
                     }
-                    // Bỏ qua quân khác màu
                 }
             }
         }
-        return liberties.size(); // Trả về số lượng liberty tìm được
+        return liberties.size();
     }
 
     /**
-     * Kiểm tra xem việc đặt quân tại 'point' có phải là tự lấp một mắt an toàn của mình không.
-     * Đây là một heuristic đơn giản, kiểm tra xem tất cả hàng xóm của 'point'
-     * có phải là quân cùng màu hay không. Một định nghĩa mắt phức tạp hơn sẽ cần thiết
-     * cho AI mạnh hơn.
+     * Kiểm tra xem điểm có phải là mắt thật không.
      */
-    private boolean isFillingOwnEye(BoardState board, Point point, Stone color) {
-        // Điểm đó phải trống
+    private boolean isFillingTrueEye(BoardState board, Point point, Stone color) {
         if (board.getStone(point.getX(), point.getY()) != Stone.EMPTY) return false;
 
         int[][] directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        int[][] diagonals = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
         int boardSize = board.getSize();
-        boolean allNeighborsAreOwnColor = true;
-        int neighborCount = 0;
 
+        // Kiểm tra hàng xóm
+        boolean allNeighborsSafe = true;
         for (int[] dir : directions) {
             int nx = point.getX() + dir[0];
             int ny = point.getY() + dir[1];
-
-            if (board.isValidPosition(nx, ny)) {
-                neighborCount++;
-                if (board.getStone(nx, ny) != color) {
-                    allNeighborsAreOwnColor = false;
-                    break; // Chỉ cần 1 hàng xóm không phải màu mình là không phải mắt đơn giản
-                }
-            } else {
-                // Nếu điểm nằm ở biên, coi như nó không phải là mắt an toàn theo cách kiểm tra này
-                allNeighborsAreOwnColor = false;
+            if (!board.isValidPosition(nx, ny)) continue;
+            if (board.getStone(nx, ny) != color) {
+                allNeighborsSafe = false;
                 break;
             }
         }
+        if (!allNeighborsSafe) return false;
 
-        // Chỉ coi là lấp mắt nếu điểm đó nằm trong bàn cờ (có đủ hàng xóm)
-        // và tất cả hàng xóm đó đều là quân của mình.
-        return neighborCount > 0 && allNeighborsAreOwnColor;
+        // Kiểm tra chéo
+        int safeDiagonals = 0;
+        for (int[] diag : diagonals) {
+            int nx = point.getX() + diag[0];
+            int ny = point.getY() + diag[1];
+            if (!board.isValidPosition(nx, ny) ||
+                    board.getStone(nx, ny) == color ||
+                    board.getStone(nx, ny) == Stone.EMPTY) {
+                safeDiagonals++;
+            }
+        }
+        if (safeDiagonals < 3) return false;
+
+        // Kiểm tra nhóm xung quanh có sống không (ít nhất 2 khí)
+        for (int[] dir : directions) {
+            int nx = point.getX() + dir[0];
+            int ny = point.getY() + dir[1];
+            if (board.isValidPosition(nx, ny)) {
+                int liberties = countLiberties(board, new Point(nx, ny), color);
+                if (liberties < 2) {
+                    return false; // Nhóm không sống -> không phải mắt thật
+                }
+            }
+        }
+
+        return true;
     }
 
-
-    /** Trả về danh sách các điểm hàng xóm hợp lệ của một điểm */
+    /**
+     * Lấy danh sách hàng xóm hợp lệ.
+     */
     private List<Point> getNeighbors(Point p, int boardSize) {
         List<Point> neighbors = new ArrayList<>();
         int[][] directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
@@ -274,7 +353,9 @@ public class BasicHeuristicStrategy extends AbstractAIStrategy {
         return neighbors;
     }
 
-    // Lớp nội bộ để lưu nước đi tiềm năng và điểm số của nó
+    /**
+     * Lớp lưu nước đi và điểm số.
+     */
     private static class PotentialMove {
         final Move move;
         final int score;
