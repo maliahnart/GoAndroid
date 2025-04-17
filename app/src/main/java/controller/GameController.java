@@ -71,7 +71,7 @@ public class GameController {
         this.whiteMovesInPeriod = 0;
 
         // Khởi tạo người chơi
-        this.blackPlayer = new BotPlayer(Stone.BLACK, new AlphaBetaStrategy());
+        this.blackPlayer = new HumanPlayer(Stone.BLACK);
         if (config.getGameMode() == GameMode.PVP) {
             this.whitePlayer = new HumanPlayer(Stone.WHITE);
         } else if (config.getGameMode() == GameMode.PVB_EASY) {
@@ -337,7 +337,7 @@ public class GameController {
                     long botTimeSpentMillis = System.currentTimeMillis() - turnStartTime;
                     Log.i(TAG, "Applying bot move: " + botMove + ", time spent: " + botTimeSpentMillis + "ms");
                     if (gameLogic != null && gameLogic.isValidMove(botMove, gameState)) {
-                        showToast("Bot moved");
+//                        showToast("Bot moved");
                         applyValidatedMove(botMove, botTimeSpentMillis);
                     } else {
                         Log.e(TAG, "Bot generated invalid move: " + botMove);

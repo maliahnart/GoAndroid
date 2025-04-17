@@ -14,7 +14,7 @@ import java.util.*;
  */
 public class AlphaBetaStrategy implements AIStrategy {
     private static final String TAG = "AlphaBetaStrategy";
-    private static final int DEFAULT_MAX_DEPTH = 2; // Giảm để tránh stack overflow
+    private static final int DEFAULT_MAX_DEPTH = 3;
     private static final int PASS_THRESHOLD = 100;
     private static final int CAPTURE_WEIGHT = 15;
     private static final int LIBERTY_WEIGHT = 1;
@@ -23,7 +23,7 @@ public class AlphaBetaStrategy implements AIStrategy {
     private static final int TERRITORY_WEIGHT = 10;
     private static final int ALIVE_BONUS = 100;
     private static final int FILL_EYE_PENALTY = -1000;
-    private static final int MAX_CANDIDATE_POINTS = 30; // Giới hạn nước đi xét
+    private static final int MAX_CANDIDATE_POINTS = 30;
 
     private final int maxDepth;
     private final Random random = new Random();
@@ -45,13 +45,11 @@ public class AlphaBetaStrategy implements AIStrategy {
             Log.e(TAG, "Invalid input: gameState=" + gameState + ", color=" + color + ", callback=" + callback);
             Move fallbackMove = new Move(null, color != null ? color : Stone.BLACK, true, false);
             mainThreadHandler.post(() -> callback.onMoveGenerated(fallbackMove));
-            return fallbackMove;
+            return null;
         }
 
         AIMoveTask task = new AIMoveTask(callback);
         task.execute(gameState, color);
-        // Trả về null vì nước đi sẽ được xử lý bất đồng bộ qua callback
-        // Caller nên đợi callback thay vì dùng giá trị trả về trực tiếp
         return null;
     }
 
@@ -89,16 +87,7 @@ public class AlphaBetaStrategy implements AIStrategy {
                 validMoves.add(new Move(null, color, true, false));
 
                 // Sắp xếp nước đi
-// Cách sửa:
-                validMoves.sort((Move m1, Move m2) -> {
-                    // Tính điểm heuristic cho cả hai nước đi
-                    int score1 = evaluateMoveBasicHeuristic(gameState, m1);
-                    int score2 = evaluateMoveBasicHeuristic(gameState, m2);
-
-                    // So sánh để sắp xếp giảm dần (điểm cao hơn đứng trước)
-                    // Integer.compare(y, x) cho giảm dần nếu y là score2, x là score1
-                    return Integer.compare(score2, score1);
-                });
+                validMoves.sort((m1, m2) -> Integer.compare(evaluateMoveBasicHeuristic(gameState, m2), evaluateMoveBasicHeuristic(gameState, m1)));
                 Move bestMove = null;
                 int bestScore = Integer.MIN_VALUE;
                 int alpha = Integer.MIN_VALUE;
@@ -177,15 +166,7 @@ public class AlphaBetaStrategy implements AIStrategy {
             List<Move> validMoves = getValidMoves(state, currentPlayer);
             validMoves.add(new Move(null, currentPlayer, true, false));
 
-            validMoves.sort((Move m1, Move m2) -> {
-                // Tính điểm heuristic cho cả hai nước đi
-                int score1 = evaluateMoveBasicHeuristic(state, m1);
-                int score2 = evaluateMoveBasicHeuristic(state, m2);
-
-                // So sánh để sắp xếp giảm dần (điểm cao hơn đứng trước)
-                // Integer.compare(y, x) cho giảm dần nếu y là score2, x là score1
-                return Integer.compare(score2, score1);
-            });
+            validMoves.sort((m1, m2) -> Integer.compare(evaluateMoveBasicHeuristic(state, m2), evaluateMoveBasicHeuristic(state, m1)));
             if (maximizingPlayer) {
                 int maxEval = Integer.MIN_VALUE;
                 for (Move move : validMoves) {
@@ -434,7 +415,7 @@ public class AlphaBetaStrategy implements AIStrategy {
             }
 
             int boardSize = board.getSize();
-            int radius = boardSize > 9 ? 1 : 2; // Giảm bán kính trên 19x19
+            int radius = boardSize > 9 ? 1 : 2;
             boolean stonesPresent = false;
 
             for (int x = 0; x < boardSize; x++) {
@@ -449,7 +430,7 @@ public class AlphaBetaStrategy implements AIStrategy {
                                 if (board.isValidPosition(nx, ny) && board.getStone(nx, ny) == Stone.EMPTY) {
                                     candidates.add(new Point(nx, ny));
                                     if (candidates.size() >= MAX_CANDIDATE_POINTS) {
-                                        return candidates; // Giới hạn số điểm
+                                        return candidates;
                                     }
                                 }
                             }
@@ -483,7 +464,7 @@ public class AlphaBetaStrategy implements AIStrategy {
             Set<Point> group = new HashSet<>();
             Set<Point> liberties = new HashSet<>();
             Stack<Point> stack = new Stack<>();
-            int maxGroupSize = board.getSize() * board.getSize() / 2; // Giới hạn kích thước nhóm
+            int maxGroupSize = board.getSize() * board.getSize() / 2;
 
             if (!board.isValidPosition(startPoint.getX(), startPoint.getY()) ||
                     board.getStone(startPoint.getX(), startPoint.getY()) != color ||
@@ -547,19 +528,32 @@ public class AlphaBetaStrategy implements AIStrategy {
                 Log.e(TAG, "Invalid input in isFillingTrueEye");
                 return false;
             }
-            if (board.getStone(point.getX(), point.getY()) != Stone.EMPTY) return false;
+            if (board.getStone(point.getX(), point.getY()) != Stone.EMPTY) {
+                return false;
+            }
 
             int[][] directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
             int[][] diagonals = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
+            int boardSize = board.getSize();
 
+            // Kiểm tra hàng xóm: tất cả phải là quân của mình hoặc ngoài bàn
+            boolean allNeighborsSafe = true;
             for (int[] dir : directions) {
                 int nx = point.getX() + dir[0];
                 int ny = point.getY() + dir[1];
-                if (board.isValidPosition(nx, ny) && board.getStone(nx, ny) != color) {
-                    return false;
+                if (!board.isValidPosition(nx, ny)) {
+                    continue; // Ngoài bàn, coi là an toàn
+                }
+                if (board.getStone(nx, ny) != color) {
+                    allNeighborsSafe = false;
+                    break;
                 }
             }
+            if (!allNeighborsSafe) {
+                return false;
+            }
 
+            // Kiểm tra chéo: ít nhất 3 chéo an toàn (trống, quân mình, hoặc ngoài bàn)
             int safeDiagonals = 0;
             for (int[] diag : diagonals) {
                 int nx = point.getX() + diag[0];
@@ -570,19 +564,23 @@ public class AlphaBetaStrategy implements AIStrategy {
                     safeDiagonals++;
                 }
             }
-            if (safeDiagonals < 3) return false;
+            if (safeDiagonals < 3) {
+                return false;
+            }
 
+            // Kiểm tra nhóm hàng xóm: phải có ít nhất 2 khí
             for (int[] dir : directions) {
                 int nx = point.getX() + dir[0];
                 int ny = point.getY() + dir[1];
                 if (board.isValidPosition(nx, ny)) {
                     Set<Point> visited = new HashSet<>();
                     int liberties = countLiberties(board, new Point(nx, ny), color, visited);
-                    if (liberties < 2 && !hasTwoEyes(board, new Point(nx, ny), color)) {
-                        return false;
+                    if (liberties < 2) {
+                        return false; // Nhóm không đủ khí, không phải mắt thật
                     }
                 }
             }
+
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Runtime error in isFillingTrueEye: " + e.getMessage(), e);
@@ -596,7 +594,12 @@ public class AlphaBetaStrategy implements AIStrategy {
                 Log.e(TAG, "Invalid input in hasTwoEyes");
                 return false;
             }
+            if (!board.isValidPosition(startPoint.getX(), startPoint.getY()) ||
+                    board.getStone(startPoint.getX(), startPoint.getY()) != color) {
+                return false;
+            }
 
+            // Tìm nhóm
             Set<Point> group = new HashSet<>();
             Stack<Point> stack = new Stack<>();
             stack.push(startPoint);
@@ -610,33 +613,62 @@ public class AlphaBetaStrategy implements AIStrategy {
                     int nx = current.getX() + dir[0];
                     int ny = current.getY() + dir[1];
                     Point neighbor = new Point(nx, ny);
-                    if (board.isValidPosition(nx, ny) && board.getStone(nx, ny) == color && !group.contains(neighbor)) {
+                    if (board.isValidPosition(nx, ny) &&
+                            board.getStone(nx, ny) == color &&
+                            !group.contains(neighbor)) {
                         group.add(neighbor);
                         stack.push(neighbor);
                     }
                 }
             }
 
-            int eyeCount = 0;
-            for (int x = 0; x < board.getSize(); x++) {
-                for (int y = 0; y < board.getSize(); y++) {
-                    Point p = new Point(x, y);
-                    if (board.getStone(x, y) == Stone.EMPTY && isFillingTrueEye(board, p, color)) {
-                        boolean adjacentToGroup = false;
-                        for (Point g : group) {
-                            for (Point n : getNeighbors(p, board.getSize())) {
-                                if (n.equals(g)) {
-                                    adjacentToGroup = true;
-                                    break;
-                                }
-                            }
-                            if (adjacentToGroup) break;
-                        }
-                        if (adjacentToGroup) eyeCount++;
-                        if (eyeCount >= 2) return true;
+            // Tìm các điểm trống liền kề nhóm
+            Set<Point> potentialEyes = new HashSet<>();
+            for (Point p : group) {
+                for (Point neighbor : getNeighbors(p, board.getSize())) {
+                    if (board.isValidPosition(neighbor.getX(), neighbor.getY()) &&
+                            board.getStone(neighbor.getX(), neighbor.getY()) == Stone.EMPTY) {
+                        potentialEyes.add(neighbor);
                     }
                 }
             }
+
+            // Đếm mắt thật
+            int eyeCount = 0;
+            for (Point eye : potentialEyes) {
+                boolean isEye = true;
+                // Kiểm tra hàng xóm của điểm trống
+                for (Point neighbor : getNeighbors(eye, board.getSize())) {
+                    if (!board.isValidPosition(neighbor.getX(), neighbor.getY()) ||
+                            (board.getStone(neighbor.getX(), neighbor.getY()) != color &&
+                                    board.getStone(neighbor.getX(), neighbor.getY()) != Stone.EMPTY)) {
+                        isEye = false;
+                        break;
+                    }
+                }
+                // Kiểm tra chéo
+                int safeDiagonals = 0;
+                for (int[] diag : new int[][] {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}}) {
+                    int nx = eye.getX() + diag[0];
+                    int ny = eye.getY() + diag[1];
+                    if (!board.isValidPosition(nx, ny) ||
+                            board.getStone(nx, ny) == color ||
+                            board.getStone(nx, ny) == Stone.EMPTY) {
+                        safeDiagonals++;
+                    }
+                }
+                if (safeDiagonals < 3) {
+                    isEye = false;
+                }
+
+                if (isEye) {
+                    eyeCount++;
+                    if (eyeCount >= 2) {
+                        return true;
+                    }
+                }
+            }
+
             return false;
         } catch (Exception e) {
             Log.e(TAG, "Runtime error in hasTwoEyes: " + e.getMessage(), e);
