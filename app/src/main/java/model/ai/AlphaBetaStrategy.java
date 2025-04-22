@@ -43,7 +43,7 @@ public class AlphaBetaStrategy implements AIStrategy {
     public Move generateMove(GameState gameState, Stone color, AIMoveCallback callback) {
         if (gameState == null || color == null || callback == null) {
             Log.e(TAG, "Invalid input: gameState=" + gameState + ", color=" + color + ", callback=" + callback);
-            Move fallbackMove = new Move(null, color != null ? color : Stone.BLACK, true, false);
+            Move fallbackMove = new Move(null, color != null ? color : Stone.BLACK, true, false, null, new ArrayList<>());
             mainThreadHandler.post(() -> callback.onMoveGenerated(fallbackMove));
             return null;
         }
@@ -82,9 +82,9 @@ public class AlphaBetaStrategy implements AIStrategy {
                 if (validMoves.isEmpty()) {
                     Log.d(TAG, "No valid moves. Passing. Time: " +
                             (System.currentTimeMillis() - startTime) + "ms");
-                    return new Move(null, color, true, false);
+                    return new Move(null, color, true, false, null, new ArrayList<>());
                 }
-                validMoves.add(new Move(null, color, true, false));
+                validMoves.add(new Move(null, color, true, false, null, new ArrayList<>()));
 
                 // Sắp xếp nước đi
                 validMoves.sort((m1, m2) -> Integer.compare(evaluateMoveBasicHeuristic(gameState, m2), evaluateMoveBasicHeuristic(gameState, m1)));
@@ -119,12 +119,12 @@ public class AlphaBetaStrategy implements AIStrategy {
                     Log.d(TAG, "Opponent passed and best score (" + bestScore +
                             ") below threshold. Passing. Time: " +
                             (System.currentTimeMillis() - startTime) + "ms");
-                    return new Move(null, color, true, false);
+                    return new Move(null, color, true, false, null, new ArrayList<>());
                 }
 
                 if (bestMove == null) {
                     Log.w(TAG, "No best move found. Passing as fallback.");
-                    bestMove = new Move(null, color, true, false);
+                    bestMove = new Move(null, color, true, false, null, new ArrayList<>());
                 }
 
                 long endTime = System.currentTimeMillis();
@@ -134,7 +134,7 @@ public class AlphaBetaStrategy implements AIStrategy {
             } catch (Exception e) {
                 Log.e(TAG, "Error in AIMoveTask: " + e.getMessage(), e);
                 this.error = e;
-                return new Move(null, color, true, false);
+                return new Move(null, color, true, false, null, new ArrayList<>());
             }
         }
 
@@ -164,7 +164,7 @@ public class AlphaBetaStrategy implements AIStrategy {
             }
 
             List<Move> validMoves = getValidMoves(state, currentPlayer);
-            validMoves.add(new Move(null, currentPlayer, true, false));
+            validMoves.add(new Move(null, currentPlayer, true, false, null, new ArrayList<>()));
 
             validMoves.sort((m1, m2) -> Integer.compare(evaluateMoveBasicHeuristic(state, m2), evaluateMoveBasicHeuristic(state, m1)));
             if (maximizingPlayer) {
@@ -223,7 +223,7 @@ public class AlphaBetaStrategy implements AIStrategy {
             }
 
             for (Point point : candidates) {
-                Move testMove = new Move(point, color);
+                Move testMove = new Move(point, color, false, false, null, new ArrayList<>());
                 if (logic.isValidMove(testMove, gameState)) {
                     validMoves.add(testMove);
                 }
@@ -243,14 +243,22 @@ public class AlphaBetaStrategy implements AIStrategy {
 
             GameState nextState = new GameState(originalState);
             if (move.isPass()) {
-                nextState.recordMove(move, nextState.getBoardState(), 0);
+                nextState.recordMove(
+                        new Move(null, move.getColor(), true, false, nextState.getBoardState(), new ArrayList<>()),
+                        nextState.getBoardState(),
+                        0
+                );
             } else {
                 GameLogic.CapturedResult result = logic.calculateNextBoardState(move, originalState.getBoardState());
                 if (result == null || result.getBoardState() == null) {
                     Log.e(TAG, "Invalid move or null result: " + move);
                     return null;
                 }
-                nextState.recordMove(move, result.getBoardState(), result.getCapturedCount());
+                nextState.recordMove(
+                        new Move(move.getPoint(), move.getColor(), false, false, result.getBoardState(), result.getCapturedPoints()),
+                        result.getBoardState(),
+                        result.getCapturedCount()
+                );
             }
             return nextState;
         } catch (Exception e) {

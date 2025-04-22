@@ -15,7 +15,7 @@ public class RandomAIStrategy extends AbstractAIStrategy {
         if (gameState == null || color == null || aiMoveCallback == null) {
             Log.e(TAG, "Invalid input: gameState=" + gameState + ", color=" + color + ", callback=" + aiMoveCallback);
             if (aiMoveCallback != null) {
-                aiMoveCallback.onMoveGenerated(new Move(null, color != null ? color : Stone.BLACK, true, false));
+                aiMoveCallback.onMoveGenerated(new Move(null, color != null ? color : Stone.BLACK, true, false, null, new ArrayList<>()));
             }
             return null;
         }
@@ -24,7 +24,7 @@ public class RandomAIStrategy extends AbstractAIStrategy {
             BoardState board = gameState.getBoardState();
             if (board == null) {
                 Log.e(TAG, "BoardState is null");
-                aiMoveCallback.onMoveGenerated(new Move(null, color, true, false));
+                aiMoveCallback.onMoveGenerated(new Move(null, color, true, false, null, new ArrayList<>()));
                 return null;
             }
 
@@ -35,7 +35,7 @@ public class RandomAIStrategy extends AbstractAIStrategy {
             for (int x = 0; x < board.getSize(); x++) {
                 for (int y = 0; y < board.getSize(); y++) {
                     if (board.getStone(x, y) == Stone.EMPTY) {
-                        Move move = new Move(new Point(x, y), color);
+                        Move move = new Move(new Point(x, y), color, false, false, null, new ArrayList<>());
                         if (logic.isValidMove(move, gameState)) {
                             validPoints.add(new Point(x, y));
                         }
@@ -46,17 +46,17 @@ public class RandomAIStrategy extends AbstractAIStrategy {
             Move move;
             if (!validPoints.isEmpty()) {
                 Point point = validPoints.get(random.nextInt(validPoints.size()));
-                move = new Move(point, color);
+                move = new Move(point, color, false, false, null, new ArrayList<>());
                 Log.d(TAG, "Generated move: " + move);
             } else {
-                move = new Move(null, color, true, false); // Pass nếu không có nước đi
+                move = new Move(null, color, true, false, null, new ArrayList<>());
                 Log.d(TAG, "No valid moves, passing: " + move);
             }
 
             aiMoveCallback.onMoveGenerated(move);
         } catch (Exception e) {
             Log.e(TAG, "Error generating move", e);
-            aiMoveCallback.onMoveGenerated(new Move(null, color, true, false));
+            aiMoveCallback.onMoveGenerated(new Move(null, color, true, false, null, new ArrayList<>()));
         }
 
         return null; // Kết quả qua callback

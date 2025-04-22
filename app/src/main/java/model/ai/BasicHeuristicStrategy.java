@@ -38,7 +38,7 @@ public class BasicHeuristicStrategy extends AbstractAIStrategy {
         if (gameState == null || color == null || aiMoveCallback == null) {
             Log.e(TAG, "Invalid input: gameState=" + gameState + ", color=" + color + ", callback=" + aiMoveCallback);
             if (aiMoveCallback != null) {
-                aiMoveCallback.onMoveGenerated(new Move(null, color != null ? color : Stone.BLACK, true, false));
+                aiMoveCallback.onMoveGenerated(new Move(null, color != null ? color : Stone.BLACK, true, false, null, new ArrayList<>()));
             }
             return null;
         }
@@ -48,7 +48,7 @@ public class BasicHeuristicStrategy extends AbstractAIStrategy {
             BoardState currentBoard = gameState.getBoardState();
             if (currentBoard == null) {
                 Log.e(TAG, "BoardState is null");
-                aiMoveCallback.onMoveGenerated(new Move(null, color, true, false));
+                aiMoveCallback.onMoveGenerated(new Move(null, color, true, false, null, new ArrayList<>()));
                 return null;
             }
 
@@ -70,7 +70,7 @@ public class BasicHeuristicStrategy extends AbstractAIStrategy {
 
             // 3. Đánh giá nước đi hợp lệ
             for (Point point : candidates) {
-                Move testMove = new Move(point, color);
+                Move testMove = new Move(point, color, false, false, null, new ArrayList<>());
                 if (logic.isValidMove(testMove, gameState)) {
                     int score = evaluateMove(gameState, testMove);
                     potentialMoves.add(new PotentialMove(testMove, score));
@@ -81,7 +81,7 @@ public class BasicHeuristicStrategy extends AbstractAIStrategy {
             if (potentialMoves.isEmpty()) {
                 Log.d(TAG, "No valid moves. Passing. Time: " +
                         (System.currentTimeMillis() - startTime) + "ms");
-                aiMoveCallback.onMoveGenerated(new Move(null, color, true, false));
+                aiMoveCallback.onMoveGenerated(new Move(null, color, true, false, null, new ArrayList<>()));
                 return null;
             }
 
@@ -94,7 +94,7 @@ public class BasicHeuristicStrategy extends AbstractAIStrategy {
                 Log.d(TAG, "Opponent passed and best score (" + bestScore +
                         ") below threshold. Passing. Time: " +
                         (System.currentTimeMillis() - startTime) + "ms");
-                aiMoveCallback.onMoveGenerated(new Move(null, color, true, false));
+                aiMoveCallback.onMoveGenerated(new Move(null, color, true, false, null, new ArrayList<>()));
                 return null;
             }
 
@@ -117,7 +117,7 @@ public class BasicHeuristicStrategy extends AbstractAIStrategy {
             aiMoveCallback.onMoveGenerated(selectedMove);
         } catch (Exception e) {
             Log.e(TAG, "Error generating move", e);
-            aiMoveCallback.onMoveGenerated(new Move(null, color, true, false));
+            aiMoveCallback.onMoveGenerated(new Move(null, color, true, false, null, new ArrayList<>()));
         }
 
         return null; // Kết quả qua callback
