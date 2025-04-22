@@ -14,7 +14,7 @@ import java.util.*;
  */
 public class AlphaBetaStrategy implements AIStrategy {
     private static final String TAG = "AlphaBetaStrategy";
-    private static final int DEFAULT_MAX_DEPTH = 3;
+    private static final int DEFAULT_MAX_DEPTH = 1;
     private static final int PASS_THRESHOLD = 100;
     private static final int CAPTURE_WEIGHT = 15;
     private static final int LIBERTY_WEIGHT = 1;

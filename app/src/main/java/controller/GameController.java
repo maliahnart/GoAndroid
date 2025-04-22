@@ -30,7 +30,7 @@ import view.GameInfoFragment;
 
 public class GameController {
     private static final String TAG = "GameController";
-    private static final long BOT_MOVE_DELAY_MS = 500; // Độ trễ để bot đi
+    private static final long BOT_MOVE_DELAY_MS = 0; // Độ trễ để bot đi
     private static final int MOVES_PER_PERIOD = 25; // Cho Canadian timing
 
     // Tham chiếu đến View và Model
