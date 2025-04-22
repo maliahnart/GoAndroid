@@ -44,33 +44,36 @@ public class GameInfoFragment extends Fragment {
         return view;
     }
 
-    public void updateGameInfo(GameState gameState, int blackMovesLeft, int whiteMovesLeft) {
+    public void updateGameInfo(GameState gameState, int blackMovesLeft, int whiteMovesLeft, long currentTimeLeft) {
         if (getView() == null || gameState == null) return;
 
         try {
             // Cập nhật lượt hiện tại
-            currentPlayerText.setText(getString(R.string.current_player, gameState.getCurrentPlayer().toString()));
+            Stone currentPlayer = gameState.getCurrentPlayer();
+            currentPlayerText.setText(getString(R.string.current_player, currentPlayer.toString()));
 
             // Cập nhật số quân bị bắt
             blackCapturedText.setText(getString(R.string.captured, gameState.getBlackCaptured()));
             whiteCapturedText.setText(getString(R.string.captured, gameState.getWhiteCaptured()));
 
             // Cập nhật thời gian
-            blackTimeText.setText(getString(R.string.time, formatTime(gameState.getBlackTimeLeft())));
-            whiteTimeText.setText(getString(R.string.time, formatTime(gameState.getWhiteTimeLeft())));
+            long blackDisplayTime = (currentPlayer == Stone.BLACK) ? currentTimeLeft : gameState.getBlackTimeLeft();
+            long whiteDisplayTime = (currentPlayer == Stone.WHITE) ? currentTimeLeft : gameState.getWhiteTimeLeft();
+            blackTimeText.setText(getString(R.string.time, formatTime(blackDisplayTime)));
+            whiteTimeText.setText(getString(R.string.time, formatTime(whiteDisplayTime)));
 
-            // Cập nhật số nước còn lại (Canadian)
+            // Cập nhật Canadian Timing
             if (gameState.getTimeControl() == TimeControl.CANADIAN) {
                 blackCanadianMovesContainer.setVisibility(View.VISIBLE);
-                blackCanadianMovesText.setText(getString(R.string.moves, blackMovesLeft));
                 whiteCanadianMovesContainer.setVisibility(View.VISIBLE);
+                blackCanadianMovesText.setText(getString(R.string.moves, blackMovesLeft));
                 whiteCanadianMovesText.setText(getString(R.string.moves, whiteMovesLeft));
             } else {
                 blackCanadianMovesContainer.setVisibility(View.GONE);
                 whiteCanadianMovesContainer.setVisibility(View.GONE);
             }
         } catch (Exception e) {
-            // Log lỗi nếu cần
+            android.util.Log.e("GameInfoFragment", "Error updating game info: " + e.getMessage(), e);
         }
     }
 
