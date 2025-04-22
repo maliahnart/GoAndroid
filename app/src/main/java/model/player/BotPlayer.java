@@ -6,6 +6,7 @@ import model.Move;
 import model.Stone;
 import model.ai.AIStrategy;
 import model.ai.AIMoveCallback;
+import java.util.ArrayList;
 
 public class BotPlayer implements Player {
     private final Stone color;
@@ -36,7 +37,7 @@ public class BotPlayer implements Player {
     public void generateMove(GameState gameState, AIMoveCallback callback) {
         if (gameState == null || callback == null || color == null) {
             Log.e("BotPlayer", "Invalid input: gameState=" + gameState + ", callback=" + callback + ", color=" + color);
-            callback.onMoveGenerated(new Move(null, color != null ? color : Stone.BLACK, true, false));
+            callback.onMoveGenerated(new Move(null, color != null ? color : Stone.BLACK, true, false, null, new ArrayList<>()));
             return;
         }
         strategy.generateMove(gameState, color, callback);
