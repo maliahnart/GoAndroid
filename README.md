@@ -96,7 +96,7 @@ Tạo emulator mới hoặc kiểm tra dung lượng lưu trữ emulator.
 🛠️ Cách chơi
 
 Chọn chế độ:
-PVB (Player vs Bot): Chọn độ khó (Beginner, Easy, Medium, Hard).
+PVB (Player vs Bot): Chọn độ khó ( Easy, Medium, Hard).
 PVP (Player vs Player): Chơi hai người trên cùng thiết bị.
 
 
@@ -104,10 +104,6 @@ PVP (Player vs Player): Chơi hai người trên cùng thiết bị.
 Chạm vào bảng cờ để đặt quân (Đen hoặc Trắng).
 Sử dụng nút Pass, Resign, hoặc Undo trong giao diện.
 
-
-AI thông minh:
-AI Hard (MCTS) sử dụng 500 mô phỏng để chọn nước đi chiến lược.
-Các chế độ khác nhanh hơn, phù hợp cho người mới.
 
 
 
