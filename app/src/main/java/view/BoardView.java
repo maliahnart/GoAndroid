@@ -97,18 +97,15 @@ public class BoardView extends View {
         }
 
         // Vẽ điểm sao
-        if (boardSize == 9) {
-            Paint starPaint = new Paint();
-            starPaint.setColor(Color.BLACK);
-            float radius = cellSize / 10;
-            int[] starPoints = {2, 4, 6};
-            for (int x : starPoints) {
-                for (int y : starPoints) {
-                    float cx = (x + 0.5f) * cellSize;
-                    float cy = (y + 0.5f) * cellSize;
-                    canvas.drawCircle(cx, cy, radius, starPaint);
-                }
-            }
+        Paint starPaint = new Paint();
+        starPaint.setColor(Color.BLACK);
+        float radius = cellSize / 10;
+
+        int[][] starPoints = getStarPoints(boardSize);
+        for (int[] point : starPoints) {
+            float cx = (point[0] + 0.5f) * cellSize;
+            float cy = (point[1] + 0.5f) * cellSize;
+            canvas.drawCircle(cx, cy, radius, starPaint);
         }
 
         // Vẽ quân cờ
@@ -118,23 +115,23 @@ public class BoardView extends View {
                 if (stone != Stone.EMPTY) {
                     float cx = (x + 0.5f) * cellSize;
                     float cy = (y + 0.5f) * cellSize;
-                    float radius = cellSize * 0.45f;
+                    float radius_shadow = cellSize * 0.45f;
 
                     // Bóng đổ
-                    canvas.drawCircle(cx + 3, cy + 3, radius, shadowPaint);
+                    canvas.drawCircle(cx + 3, cy + 3, radius_shadow, shadowPaint);
 
                     Bitmap stoneBitmap = (stone == Stone.BLACK) ? blackStoneBitmap : whiteStoneBitmap;
 
                     if (stoneBitmap != null) {
                         RectF dest = new RectF(
-                                cx - radius,
-                                cy - radius,
-                                cx + radius,
-                                cy + radius
+                                cx - radius_shadow,
+                                cy - radius_shadow,
+                                cx + radius_shadow,
+                                cy + radius_shadow
                         );
                         canvas.drawBitmap(stoneBitmap, null, dest, null);
                     } else {
-                        // fallback nếu không có ảnh
+                        // Fallback nếu không có ảnh
                         Paint fallbackPaint = new Paint();
                         fallbackPaint.setAntiAlias(true);
                         fallbackPaint.setColor(stone == Stone.BLACK ? Color.BLACK : Color.WHITE);
@@ -143,7 +140,36 @@ public class BoardView extends View {
                 }
             }
         }
+    }
 
+    private int[][] getStarPoints(int boardSize) {
+        switch (boardSize) {
+            case 4:
+                // Không có điểm sao cho 4x4
+                return new int[][] {};
+            case 9:
+                // 5 điểm: 4 góc (cách mép 2 đường) và tâm
+                return new int[][] {
+                        {2, 2}, {2, 6}, {6, 2}, {6, 6}, // Góc
+                        {4, 4} // Tâm
+                };
+            case 13:
+                // 9 điểm: 4 góc (cách mép 3 đường), 4 cạnh, tâm
+                return new int[][] {
+                        {3, 3}, {3, 9}, {9, 3}, {9, 9}, // Góc
+                        {3, 6}, {6, 3}, {9, 6}, {6, 9}, // Cạnh
+                        {6, 6} // Tâm
+                };
+            case 19:
+                // 9 điểm: 4 góc (cách mép 3 đường), 4 cạnh, tâm
+                return new int[][] {
+                        {3, 3}, {3, 15}, {15, 3}, {15, 15}, // Góc
+                        {3, 9}, {9, 3}, {15, 9}, {9, 15}, // Cạnh
+                        {9, 9} // Tâm
+                };
+            default:
+                return new int[][] {};
+        }
     }
 
     @Override
