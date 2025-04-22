@@ -7,7 +7,7 @@
 <p align="center">A classic board game of strategy, beautifully remade for Android</p>
 
 ---
-
+alo
 ### 📱 Giới thiệu
 
 **Cờ Vây (Go)** là một trò chơi chiến thuật cổ xưa có nguồn gốc từ Trung Quốc, đòi hỏi tư duy chiến lược sâu sắc.  
