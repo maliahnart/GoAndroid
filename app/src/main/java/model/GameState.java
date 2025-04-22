@@ -8,41 +8,38 @@ import java.util.List;
 
 public class GameState {
     private BoardState boardState;
-    private BoardState previousBoardState;
-    private Stone currentPlayer;
     private final List<Move> moveHistory;
+    private Stone currentPlayer;
     private int consecutivePasses;
     private int blackCaptured;
     private int whiteCaptured;
     private final float komi;
     private boolean gameOver;
     private String endGameReason;
-    private long blackTimeLeft; // Thời gian còn lại của Đen (ms)
-    private long whiteTimeLeft; // Thời gian còn lại của Trắng (ms)
-    private final TimeControl timeControl; // Lưu TimeControl từ config
+    private long blackTimeLeft; // Time left for Black (ms)
+    private long whiteTimeLeft; // Time left for White (ms)
+    private final TimeControl timeControl; // TimeControl from config
 
     public GameState(GameConfig config) {
         this.boardState = new BoardState(config);
-        this.previousBoardState = null;
-        this.currentPlayer = Stone.BLACK;
         this.moveHistory = new ArrayList<>();
+        this.currentPlayer = Stone.BLACK;
         this.consecutivePasses = 0;
         this.blackCaptured = 0;
         this.whiteCaptured = 0;
         this.komi = config.getKomi();
         this.gameOver = false;
         this.endGameReason = "";
-        this.blackTimeLeft = config.getTimeLimit() * 1000L; // Chuyển giây thành ms
+        this.blackTimeLeft = config.getTimeLimit() * 1000L; // Seconds to ms
         this.whiteTimeLeft = config.getTimeLimit() * 1000L;
-        this.timeControl = config.getTimeControl(); // Lưu TimeControl
+        this.timeControl = config.getTimeControl();
     }
 
-    // Constructor sao chép
+    // Copy constructor
     public GameState(GameState other) {
         this.boardState = other.boardState.copy();
-        this.previousBoardState = other.previousBoardState != null ? other.previousBoardState.copy() : null;
-        this.currentPlayer = other.currentPlayer;
         this.moveHistory = new ArrayList<>(other.moveHistory);
+        this.currentPlayer = other.currentPlayer;
         this.consecutivePasses = other.consecutivePasses;
         this.blackCaptured = other.blackCaptured;
         this.whiteCaptured = other.whiteCaptured;
@@ -56,7 +53,6 @@ public class GameState {
 
     public float getKomi() { return komi; }
     public BoardState getBoardState() { return boardState; }
-    public BoardState getPreviousBoardState() { return previousBoardState; }
     public Stone getCurrentPlayer() { return currentPlayer; }
     public List<Move> getMoveHistory() { return new ArrayList<>(moveHistory); }
     public int getConsecutivePasses() { return consecutivePasses; }
@@ -73,9 +69,11 @@ public class GameState {
     }
 
     public void recordMove(Move move, BoardState nextBoardState, int capturedCount) {
-        this.previousBoardState = this.boardState.copy();
-        this.boardState = nextBoardState;
+        if (move == null || nextBoardState == null) {
+            throw new IllegalArgumentException("Move or nextBoardState cannot be null");
+        }
         moveHistory.add(move);
+        this.boardState = nextBoardState;
 
         if (move.isPass()) {
             consecutivePasses++;
@@ -101,16 +99,16 @@ public class GameState {
 
     public void setGameOver(boolean isOver, String reason) {
         this.gameOver = isOver;
-        this.endGameReason = reason;
+        this.endGameReason = reason != null ? reason : "";
     }
 
     /**
-     * Cập nhật thời gian còn lại sau mỗi nước đi.
-     * @param player Người chơi vừa đi.
-     * @param timeSpent Thời gian đã dùng (ms).
+     * Update time left after a move.
+     * @param player Player who moved.
+     * @param timeSpent Time used (ms).
      */
     public void updateTime(Stone player, long timeSpent) {
-        if (gameOver) return; // Không cập nhật nếu game over
+        if (gameOver) return;
 
         if (player == Stone.BLACK) {
             blackTimeLeft = Math.max(0, blackTimeLeft - timeSpent);
@@ -126,12 +124,12 @@ public class GameState {
     }
 
     /**
-     * Đặt lại thời gian cho người chơi trong giai đoạn Canadian.
-     * @param player Người chơi cần reset (BLACK hoặc WHITE).
-     * @param periodTime Thời gian mới cho giai đoạn (ms).
+     * Reset time for a player in Canadian time control.
+     * @param player Player to reset (BLACK or WHITE).
+     * @param periodTime New period time (ms).
      */
     public void resetTimePeriod(Stone player, long periodTime) {
-        if (gameOver) return; // Không reset nếu game over
+        if (gameOver) return;
 
         if (player == Stone.BLACK) {
             blackTimeLeft = Math.max(0, periodTime);
@@ -141,24 +139,37 @@ public class GameState {
     }
 
     /**
-     * Hoàn tác nước đi cuối cùng.
-     * @return true nếu undo thành công, false nếu không có nước đi để undo.
+     * Undo the last move, restoring board state and captured stones.
+     * @return true if undo successful, false if no moves to undo.
      */
     public boolean undoLastMove() {
         if (moveHistory.isEmpty() || gameOver) {
             return false;
         }
 
-        moveHistory.remove(moveHistory.size() - 1);
-        if (previousBoardState != null) {
-            boardState = previousBoardState;
-            previousBoardState = null; // Cần logic phức tạp hơn nếu muốn undo nhiều lần
+        Move lastMove = moveHistory.remove(moveHistory.size() - 1);
+        BoardState previousState = lastMove.getBoardState();
+        if (previousState == null) {
+            return false;
         }
+
+        // Restore board state
+        this.boardState = previousState;
+
+        // Update captured counts
+        int capturedCount = lastMove.getCapturedStones().size();
+        if (lastMove.getColor() == Stone.BLACK) {
+            whiteCaptured = Math.max(0, whiteCaptured - capturedCount);
+        } else if (lastMove.getColor() == Stone.WHITE) {
+            blackCaptured = Math.max(0, blackCaptured - capturedCount);
+        }
+
+        // Update game state
         consecutivePasses = moveHistory.stream().filter(Move::isPass).mapToInt(m -> 1).sum();
-        currentPlayer = currentPlayer.opponent();
-        // Không khôi phục captured vì chưa lưu lịch sử captured
+        currentPlayer = lastMove.getColor();
         gameOver = false;
         endGameReason = "";
+
         return true;
     }
 
