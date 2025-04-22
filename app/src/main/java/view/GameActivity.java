@@ -77,13 +77,15 @@ public class GameActivity extends AppCompatActivity {
 
     public void showGameOverDialog(String message, Runnable onPlayAgain, Runnable onExit) {
         new AlertDialog.Builder(this)
-                .setTitle("Game Over")
+                .setTitle("End")
                 .setMessage(message)
                 .setPositiveButton("Play Again", (dialog, which) -> onPlayAgain.run())
                 .setNegativeButton("Exit", (dialog, which) -> onExit.run())
                 .setCancelable(false)
                 .show();
     }
+
+
 
     public void restartGame(GameConfig config) {
         try {

@@ -44,22 +44,18 @@ public class GameInfoFragment extends Fragment {
         return view;
     }
 
-    public void updateGameInfo(GameState gameState, int blackMovesLeft, int whiteMovesLeft) {
+    public void updateGameInfo(GameState gameState, int blackMovesLeft, int whiteMovesLeft, long blackTimeOverride, long whiteTimeOverride) {
         if (getView() == null || gameState == null) return;
 
         try {
-            // Cập nhật lượt hiện tại
             currentPlayerText.setText(getString(R.string.current_player, gameState.getCurrentPlayer().toString()));
 
-            // Cập nhật số quân bị bắt
             blackCapturedText.setText(getString(R.string.captured, gameState.getBlackCaptured()));
             whiteCapturedText.setText(getString(R.string.captured, gameState.getWhiteCaptured()));
 
-            // Cập nhật thời gian
-            blackTimeText.setText(getString(R.string.time, formatTime(gameState.getBlackTimeLeft())));
-            whiteTimeText.setText(getString(R.string.time, formatTime(gameState.getWhiteTimeLeft())));
+            blackTimeText.setText(getString(R.string.time, formatTime(blackTimeOverride)));
+            whiteTimeText.setText(getString(R.string.time, formatTime(whiteTimeOverride)));
 
-            // Cập nhật số nước còn lại (Canadian)
             if (gameState.getTimeControl() == TimeControl.CANADIAN) {
                 blackCanadianMovesContainer.setVisibility(View.VISIBLE);
                 blackCanadianMovesText.setText(getString(R.string.moves, blackMovesLeft));
@@ -73,6 +69,7 @@ public class GameInfoFragment extends Fragment {
             // Log lỗi nếu cần
         }
     }
+
 
     private String formatTime(long millis) {
         long seconds = millis / 1000;

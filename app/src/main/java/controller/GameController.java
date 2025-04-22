@@ -30,6 +30,11 @@ import view.GameInfoFragment;
 
 public class GameController {
     private static final String TAG = "GameController";
+
+    private Runnable uiTimerRunnable;
+    private boolean isUiTimerRunning = false;
+
+
     private static final long BOT_MOVE_DELAY_MS = 500; // Độ trễ để bot đi
     private static final int MOVES_PER_PERIOD = 25; // Cho Canadian timing
 
@@ -71,6 +76,7 @@ public class GameController {
         this.whiteMovesInPeriod = 0;
 
         // Khởi tạo người chơi
+     //   this.blackPlayer = new BotPlayer(Stone.BLACK , new AlphaBetaStrategy());
         this.blackPlayer = new HumanPlayer(Stone.BLACK);
         if (config.getGameMode() == GameMode.PVP) {
             this.whitePlayer = new HumanPlayer(Stone.WHITE);
@@ -100,6 +106,37 @@ public class GameController {
         Log.d(TAG, "GameController initialization finished.");
     }
 
+    private void startUiTimer() {
+        if (isUiTimerRunning) return;
+        isUiTimerRunning = true;
+
+        uiTimerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (gameState == null || gameState.isGameOver()) {
+                    isUiTimerRunning = false;
+                    return;
+                }
+
+                // Gọi UI cập nhật giao diện (hiển thị thời gian)
+                updateGameInfoUI();
+
+                // Tiếp tục đếm sau 1 giây
+                mainThreadHandler.postDelayed(this, 1000);
+            }
+        };
+
+        mainThreadHandler.postDelayed(uiTimerRunnable, 0);
+    }
+
+    private void stopUiTimer() {
+        if (uiTimerRunnable != null) {
+            mainThreadHandler.removeCallbacks(uiTimerRunnable);
+            isUiTimerRunning = false;
+        }
+    }
+
+
     /** Bắt đầu lượt chơi: Cập nhật UI và kiểm tra bot */
     private void startTurn() {
         if (gameState == null || gameState.isGameOver()) {
@@ -108,6 +145,10 @@ public class GameController {
         }
         Log.d(TAG, "Starting turn for: " + gameState.getCurrentPlayer());
         this.turnStartTime = System.currentTimeMillis();
+
+        stopUiTimer();     // Dừng cái cũ nếu có
+        startUiTimer();    // Bắt đầu cái mới
+
 
         updateGameInfoUI();
 
@@ -367,18 +408,35 @@ public class GameController {
             Log.e(TAG, "Cannot update UI: gameInfoFragment or gameState is null");
             return;
         }
+
         try {
             int blackMovesLeft = config.getTimeControl() == TimeControl.CANADIAN ? MOVES_PER_PERIOD - blackMovesInPeriod : -1;
             int whiteMovesLeft = config.getTimeControl() == TimeControl.CANADIAN ? MOVES_PER_PERIOD - whiteMovesInPeriod : -1;
-            gameInfoFragment.updateGameInfo(gameState, blackMovesLeft, whiteMovesLeft);
+
+            // Tính thời gian còn lại thực tế
+            long now = System.currentTimeMillis();
+            long timeSpent = now - turnStartTime;
+            long blackTime = gameState.getBlackTimeLeft();
+            long whiteTime = gameState.getWhiteTimeLeft();
+
+            if (gameState.getCurrentPlayer() == Stone.BLACK) {
+                blackTime = Math.max(0, blackTime - timeSpent);
+            } else {
+                whiteTime = Math.max(0, whiteTime - timeSpent);
+            }
+
+            gameInfoFragment.updateGameInfo(gameState, blackMovesLeft, whiteMovesLeft, blackTime, whiteTime);
             Log.d(TAG, "Game info UI updated.");
         } catch (Exception e) {
             Log.e(TAG, "Error updating GameInfoFragment", e);
         }
     }
 
+
     private void handleGameOver() {
         mainThreadHandler.post(() -> {
+            stopUiTimer();     // Dừng cái cũ nếu có
+
             try {
                 if (gameState == null) {
                     Log.e(TAG, "gameState is null in handleGameOver");
@@ -397,8 +455,25 @@ public class GameController {
                 String reason = gameState.getEndGameReason();
                 if (reason == null || reason.isEmpty()) reason = "Game ended.";
 
-                String message = String.format("%s\nScore: Black %.1f - White %.1f",
-                        reason, score.blackScore, score.whiteScore);
+                String winner;
+                if (score.blackScore > score.whiteScore) {
+                    winner = "Black wins!";
+                } else if (score.whiteScore > score.blackScore) {
+                    winner = "White wins!";
+                } else {
+                    winner = "It's a tie!";
+                }
+
+                String message;
+                if (reason.contains("wins")) {
+                    message = String.format("%s\nScore: Black %.1f - White %.1f",
+                            reason, score.blackScore, score.whiteScore);
+                } else {
+                    message = String.format("%s\n%s\nScore: Black %.1f - White %.1f",
+                            reason, winner, score.blackScore, score.whiteScore);
+                }
+
+
 
                 // Thay Toast bằng dialog
                 if (gameActivity != null) {
