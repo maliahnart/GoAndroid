@@ -195,8 +195,8 @@ public class GameLogic {
         float whiteScore;
 
         if (rule == ScoringRule.JAPANESE) {
-            blackScore = territory.blackTerritory - state.getBlackCaptured();
-            whiteScore = territory.whiteTerritory - state.getWhiteCaptured() + state.getKomi();
+            blackScore = territory.blackTerritory + state.getWhiteCaptured();
+            whiteScore = territory.whiteTerritory + state.getBlackCaptured() + state.getKomi();
         } else { // ScoringRule.CHINESE
             int blackStones = countStones(board, Stone.BLACK);
             int whiteStones = countStones(board, Stone.WHITE);
